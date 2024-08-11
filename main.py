@@ -51,7 +51,7 @@ class KeyloggerApp:
         
         # Mise à jour de l'interface utilisateur
         for device_name, device_list in self.available_devices.items():
-            if device_list():
+            if device_list:  # Vérifier si la liste de périphériques n'est pas vide
                 var = tk.BooleanVar(value=True)
                 checkbutton = ttk.Checkbutton(self.device_frame, text=device_name, variable=var)
                 checkbutton.pack(side="left", padx=10, pady=10)
