@@ -5,6 +5,7 @@ import time
 from pynput import mouse, keyboard
 import pygame
 import pygetwindow as gw
+import threading
 
 class KeyloggerApp:
     def __init__(self, root):
@@ -13,11 +14,14 @@ class KeyloggerApp:
         self.recording = False
         self.data = []
         self.start_time = None
+        self.devices = []
 
         self.setup_ui()
 
         pygame.init()
-        self.update_devices()
+        self.check_devices_thread = threading.Thread(target=self.check_devices)
+        self.check_devices_thread.daemon = True
+        self.check_devices_thread.start()
 
     def setup_ui(self):
         # Start/Stop buttons
@@ -40,12 +44,27 @@ class KeyloggerApp:
         self.device_listbox = tk.Listbox(self.root, selectmode=tk.MULTIPLE)
         self.device_listbox.pack(pady=10)
 
+    def check_devices(self):
+        while True:
+            new_devices = []
+            pygame.joystick.quit()
+            pygame.joystick.init()
+
+            new_devices.append("Keyboard")
+            new_devices.append("Mouse")
+            if pygame.joystick.get_count() > 0:
+                new_devices.append("Joystick")
+
+            if new_devices != self.devices:
+                self.devices = new_devices
+                self.update_devices()
+
+            time.sleep(1)  # Vérifie les périphériques toutes les secondes
+
     def update_devices(self):
         self.device_listbox.delete(0, tk.END)
-        self.device_listbox.insert(tk.END, "Keyboard")
-        self.device_listbox.insert(tk.END, "Mouse")
-        if pygame.joystick.get_count() > 0:
-            self.device_listbox.insert(tk.END, "Joystick")
+        for device in self.devices:
+            self.device_listbox.insert(tk.END, device)
 
     def start_recording(self):
         selected_devices = [self.device_listbox.get(i) for i in self.device_listbox.curselection()]
