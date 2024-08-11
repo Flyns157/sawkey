@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog
 from pynput import keyboard, mouse
 import time
 import json
@@ -20,12 +19,14 @@ class KeyloggerApp:
         self.mouse_listener = None
         self.keyboard_listener = None
         self.devices_used = []
+        self.device_vars = {}
         
         # Récupération du titre de la fenêtre pour l'ignorer lors de l'enregistrement
         self.window_title = self.root.title()
         
         # Interface graphique
         self.create_widgets()
+        self.detect_devices()
     
     def create_widgets(self):
         self.start_button = ttk.Button(self.root, text="Start Recording", command=self.start_recording)
@@ -40,18 +41,21 @@ class KeyloggerApp:
         self.device_frame = ttk.LabelFrame(self.root, text="Select Devices")
         self.device_frame.pack(pady=20, padx=20, fill="x")
 
-        self.keyboard_var = tk.BooleanVar(value=True)
-        self.mouse_var = tk.BooleanVar(value=True)
-        self.gamepad_var = tk.BooleanVar(value=True)
-
-        self.keyboard_check = ttk.Checkbutton(self.device_frame, text="Keyboard", variable=self.keyboard_var)
-        self.keyboard_check.pack(side="left", padx=10, pady=10)
-
-        self.mouse_check = ttk.Checkbutton(self.device_frame, text="Mouse", variable=self.mouse_var)
-        self.mouse_check.pack(side="left", padx=10, pady=10)
+    def detect_devices(self):
+        # Détecter les périphériques disponibles
+        self.available_devices = {
+            "Keyboard": devices.keyboards,
+            "Mouse": devices.mice,
+            "Gamepad": devices.gamepads,
+        }
         
-        self.gamepad_check = ttk.Checkbutton(self.device_frame, text="Gamepad", variable=self.gamepad_var)
-        self.gamepad_check.pack(side="left", padx=10, pady=10)
+        # Mise à jour de l'interface utilisateur
+        for device_name, device_list in self.available_devices.items():
+            if device_list():
+                var = tk.BooleanVar(value=True)
+                checkbutton = ttk.Checkbutton(self.device_frame, text=device_name, variable=var)
+                checkbutton.pack(side="left", padx=10, pady=10)
+                self.device_vars[device_name] = var
 
     def start_recording(self):
         self.recording = True
@@ -59,17 +63,17 @@ class KeyloggerApp:
         self.log = []
         self.devices_used = []
         
-        if self.keyboard_var.get():
+        if self.device_vars.get("Keyboard", tk.BooleanVar()).get():
             self.keyboard_listener = keyboard.Listener(on_press=self.on_key_press, on_release=self.on_key_release)
             self.keyboard_listener.start()
             self.devices_used.append('Keyboard')
 
-        if self.mouse_var.get():
+        if self.device_vars.get("Mouse", tk.BooleanVar()).get():
             self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move)
             self.mouse_listener.start()
             self.devices_used.append('Mouse')
         
-        if self.gamepad_var.get():
+        if self.device_vars.get("Gamepad", tk.BooleanVar()).get():
             self.devices_used.append('Gamepad')
             self.root.after(10, self.poll_gamepad)
 
