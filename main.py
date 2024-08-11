@@ -6,6 +6,7 @@ from pynput import mouse, keyboard
 import pygame
 import pygetwindow as gw
 import threading
+from datetime import datetime
 
 class KeyloggerApp:
     def __init__(self, root):
@@ -31,18 +32,16 @@ class KeyloggerApp:
         self.stop_button = tk.Button(self.root, text="Stop Recording", command=self.stop_recording, state=tk.DISABLED)
         self.stop_button.pack(pady=10)
 
-        # File naming
-        self.file_label = tk.Label(self.root, text="Output File Name:")
-        self.file_label.pack(pady=5)
-        self.file_entry = tk.Entry(self.root)
-        self.file_entry.pack(pady=5)
+        # Save file
+        self.save_button = tk.Button(self.root, text="Save Recording", command=self.save_recording, state=tk.DISABLED)
+        self.save_button.pack(pady=10)
 
-        # Device selection
-        self.device_label = tk.Label(self.root, text="Select Devices:")
-        self.device_label.pack(pady=5)
+        # Device selection in a LabelFrame
+        self.device_frame = tk.LabelFrame(self.root, text="Select Devices")
+        self.device_frame.pack(pady=20, padx=20, fill="x")
 
-        self.device_listbox = tk.Listbox(self.root, selectmode=tk.MULTIPLE)
-        self.device_listbox.pack(pady=10)
+        self.device_listbox = tk.Listbox(self.device_frame, selectmode=tk.MULTIPLE)
+        self.device_listbox.pack(pady=10, padx=10, fill="x")
 
     def check_devices(self):
         while True:
@@ -67,8 +66,8 @@ class KeyloggerApp:
             self.device_listbox.insert(tk.END, device)
 
     def start_recording(self):
-        selected_devices = [self.device_listbox.get(i) for i in self.device_listbox.curselection()]
-        if not selected_devices:
+        self.devices_used = [self.device_listbox.get(i) for i in self.device_listbox.curselection()]
+        if not self.devices_used:
             messagebox.showwarning("No Device Selected", "Please select at least one device to record.")
             return
 
@@ -78,31 +77,52 @@ class KeyloggerApp:
         self.start_time = time.time()
         self.data = []
 
-        self.mouse_listener = mouse.Listener(on_click=self.on_click) if "Mouse" in selected_devices else None
-        self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release) if "Keyboard" in selected_devices else None
-        self.joystick_listener = pygame.joystick.Joystick(0) if "Joystick" in selected_devices and pygame.joystick.get_count() > 0 else None
+        self.mouse_listener = mouse.Listener(on_click=self.on_click) if "Mouse" in self.devices_used else None
+        self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release) if "Keyboard" in self.devices_used else None
+        self.joystick_listener = pygame.joystick.Joystick(0) if "Joystick" in self.devices_used and pygame.joystick.get_count() > 0 else None
 
         if self.mouse_listener: self.mouse_listener.start()
         if self.keyboard_listener: self.keyboard_listener.start()
         if self.joystick_listener: self.record_joystick()
+        
+        self.save_button.config(state=tk.DISABLED)
 
     def stop_recording(self):
         self.recording = False
         if self.mouse_listener: self.mouse_listener.stop()
         if self.keyboard_listener: self.keyboard_listener.stop()
 
-        output_file = self.file_entry.get() + ".json"
-        if output_file:
-            with open(output_file, 'w') as f:
-                json.dump({
-                    "start_time": self.start_time,
-                    "duration": time.time() - self.start_time,
-                    "events": self.data
-                }, f, indent=4)
-
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
-        messagebox.showinfo("Recording Stopped", f"Data saved to {output_file}")
+        self.save_button.config(state=tk.NORMAL)
+
+    def save_recording(self):
+        if not self.data:
+            messagebox.showwarning("Warning", "No data to save!")
+            return
+
+        # Demander à l'utilisateur de choisir un nom de fichier
+        filename = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON files", "*.json")])
+        if not filename:
+            return
+        
+        # Calcul de la durée totale
+        duration = time.time() - self.start_time
+        
+        # Données à sauvegarder
+        data = {
+            "recording_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "duration": f"{duration:.4f} seconds",
+            "devices": self.devices_used,
+            "events": self.data
+        }
+        
+        # Sauvegarde des données dans un fichier JSON
+        with open(filename, "w") as file:
+            json.dump(data, file, indent=4)
+        
+        messagebox.showinfo("Info", f"Recording saved as '{filename}'")
+        self.save_button.config(state=tk.DISABLED)
 
     def on_click(self, x, y, button, pressed):
         if self.recording:
