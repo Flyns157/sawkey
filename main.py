@@ -5,6 +5,7 @@ from pynput import keyboard, mouse
 import time
 import json
 from datetime import datetime
+import pygetwindow as gw
 
 class KeyloggerApp:
     def __init__(self, root):
@@ -18,6 +19,9 @@ class KeyloggerApp:
         self.mouse_listener = None
         self.keyboard_listener = None
         self.devices_used = []
+        
+        # Récupération du titre de la fenêtre pour l'ignorer lors de l'enregistrement
+        self.window_title = self.root.title()
         
         # Interface graphique
         self.create_widgets()
@@ -105,8 +109,17 @@ class KeyloggerApp:
         messagebox.showinfo("Info", f"Recording saved as '{filename}'")
         self.save_button.config(state=tk.DISABLED)
     
+    def get_active_window_title(self):
+        # Récupérer la fenêtre active
+        window = gw.getActiveWindow()
+        return window.title if window else ""
+    
+    def should_ignore_event(self):
+        # Vérifie si l'événement se produit dans la fenêtre de l'application
+        return self.get_active_window_title() == self.window_title
+    
     def on_key_press(self, key):
-        if self.recording:
+        if self.recording and not self.should_ignore_event():
             duration = time.time() - self.start_time
             try:
                 self.log.append({"time": f"{duration:.4f}", "event": "Key pressed", "key": key.char})
@@ -114,7 +127,7 @@ class KeyloggerApp:
                 self.log.append({"time": f"{duration:.4f}", "event": "Special Key pressed", "key": str(key)})
     
     def on_key_release(self, key):
-        if self.recording:
+        if self.recording and not self.should_ignore_event():
             duration = time.time() - self.start_time
             try:
                 self.log.append({"time": f"{duration:.4f}", "event": "Key released", "key": key.char})
@@ -122,13 +135,13 @@ class KeyloggerApp:
                 self.log.append({"time": f"{duration:.4f}", "event": "Special Key released", "key": str(key)})
     
     def on_click(self, x, y, button, pressed):
-        if self.recording:
+        if self.recording and not self.should_ignore_event():
             duration = time.time() - self.start_time
             action = "Mouse clicked" if pressed else "Mouse released"
             self.log.append({"time": f"{duration:.4f}", "event": action, "position": (x, y), "button": str(button)})
     
     def on_move(self, x, y):
-        if self.recording:
+        if self.recording and not self.should_ignore_event():
             duration = time.time() - self.start_time
             self.log.append({"time": f"{duration:.4f}", "event": "Mouse moved", "position": (x, y)})
             
