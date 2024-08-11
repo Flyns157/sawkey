@@ -6,6 +6,7 @@ import time
 import json
 from datetime import datetime
 import pygetwindow as gw
+from inputs import devices, get_key, get_mouse, get_gamepad
 
 class KeyloggerApp:
     def __init__(self, root):
@@ -41,12 +42,16 @@ class KeyloggerApp:
 
         self.keyboard_var = tk.BooleanVar(value=True)
         self.mouse_var = tk.BooleanVar(value=True)
+        self.gamepad_var = tk.BooleanVar(value=True)
 
         self.keyboard_check = ttk.Checkbutton(self.device_frame, text="Keyboard", variable=self.keyboard_var)
         self.keyboard_check.pack(side="left", padx=10, pady=10)
 
         self.mouse_check = ttk.Checkbutton(self.device_frame, text="Mouse", variable=self.mouse_var)
         self.mouse_check.pack(side="left", padx=10, pady=10)
+        
+        self.gamepad_check = ttk.Checkbutton(self.device_frame, text="Gamepad", variable=self.gamepad_var)
+        self.gamepad_check.pack(side="left", padx=10, pady=10)
 
     def start_recording(self):
         self.recording = True
@@ -63,6 +68,10 @@ class KeyloggerApp:
             self.mouse_listener = mouse.Listener(on_click=self.on_click, on_move=self.on_move)
             self.mouse_listener.start()
             self.devices_used.append('Mouse')
+        
+        if self.gamepad_var.get():
+            self.devices_used.append('Gamepad')
+            self.root.after(10, self.poll_gamepad)
 
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
@@ -144,6 +153,24 @@ class KeyloggerApp:
         if self.recording and not self.should_ignore_event():
             duration = time.time() - self.start_time
             self.log.append({"time": f"{duration:.4f}", "event": "Mouse moved", "position": (x, y)})
+    
+    def poll_gamepad(self):
+        if not self.recording:
+            return
+
+        events = get_gamepad()
+        for event in events:
+            if event.ev_type != 'Sync':
+                duration = time.time() - self.start_time
+                self.log.append({
+                    "time": f"{duration:.4f}",
+                    "event": event.ev_type,
+                    "code": event.code,
+                    "state": event.state
+                })
+
+        # Continue polling for gamepad events
+        self.root.after(10, self.poll_gamepad)
             
 if __name__ == "__main__":
     root = tk.Tk()
