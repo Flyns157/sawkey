@@ -11,12 +11,13 @@ from datetime import datetime
 class KeyloggerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("SAWKEY Application")
+        self.root.title("Keylogger Application")
         self.recording = False
         self.data = []
         self.start_time = None
         self.devices = []
         self.joystick_name = None  # Pour stocker le nom du joystick
+        self.selected_joystick = None  # Pour stocker la manette sélectionnée
 
         self.setup_ui()
 
@@ -27,7 +28,7 @@ class KeyloggerApp:
 
     def setup_ui(self):
         # Start/Stop button
-        self.toggle_button = tk.Button(self.root, text="Start Recording", command=self.toggle_recording, bg="lightgreen")
+        self.toggle_button = tk.Button(self.root, text="Start Recording", command=self.toggle_recording, bg="lightgrey")
         self.toggle_button.pack(pady=10)
 
         # Save file
@@ -41,6 +42,13 @@ class KeyloggerApp:
         self.device_listbox = tk.Listbox(self.device_frame, selectmode=tk.MULTIPLE)
         self.device_listbox.pack(pady=10, padx=10, fill="x")
 
+        # Joystick selection in a LabelFrame
+        self.joystick_frame = tk.LabelFrame(self.root, text="Select Joystick")
+        self.joystick_frame.pack(pady=20, padx=20, fill="x")
+
+        self.joystick_listbox = tk.Listbox(self.joystick_frame, selectmode=tk.SINGLE)
+        self.joystick_listbox.pack(pady=10, padx=10, fill="x")
+
     def check_devices(self):
         while True:
             new_devices = []
@@ -51,6 +59,7 @@ class KeyloggerApp:
             new_devices.append("Mouse")
             if pygame.joystick.get_count() > 0:
                 new_devices.append("Joystick")
+                self.update_joystick_list()
 
             if new_devices != self.devices:
                 self.devices = new_devices
@@ -63,6 +72,13 @@ class KeyloggerApp:
         for device in self.devices:
             self.device_listbox.insert(tk.END, device)
 
+    def update_joystick_list(self):
+        self.joystick_listbox.delete(0, tk.END)
+        for i in range(pygame.joystick.get_count()):
+            joystick = pygame.joystick.Joystick(i)
+            joystick.init()
+            self.joystick_listbox.insert(tk.END, joystick.get_name())
+
     def toggle_recording(self):
         if self.recording:
             self.stop_recording()
@@ -71,23 +87,32 @@ class KeyloggerApp:
 
     def start_recording(self):
         self.devices_used = [self.device_listbox.get(i) for i in self.device_listbox.curselection()]
+        selected_joystick_index = self.joystick_listbox.curselection()
+        
         if not self.devices_used:
             messagebox.showwarning("No Device Selected", "Please select at least one device to record.")
             return
+        
+        if "Joystick" in self.devices_used and not selected_joystick_index:
+            messagebox.showwarning("No Joystick Selected", "Please select a joystick to record.")
+            return
+
+        if "Joystick" in self.devices_used:
+            self.selected_joystick = pygame.joystick.Joystick(selected_joystick_index[0])
 
         self.recording = True
-        self.toggle_button.config(text="Stop Recording", bg="red")
+        self.toggle_button.config(text="Stop Recording", bg="lightgreen")
         self.start_time = time.time()
         self.data = []
 
         self.mouse_listener = mouse.Listener(on_click=self.on_click) if "Mouse" in self.devices_used else None
         self.keyboard_listener = keyboard.Listener(on_press=self.on_press, on_release=self.on_release) if "Keyboard" in self.devices_used else None
-        self.joystick_listener = pygame.joystick.Joystick(0) if "Joystick" in self.devices_used and pygame.joystick.get_count() > 0 else None
+        self.joystick_listener = self.selected_joystick if self.selected_joystick else None
 
         if self.mouse_listener: self.mouse_listener.start()
         if self.keyboard_listener: self.keyboard_listener.start()
         if self.joystick_listener:
-            self.joystick_name = pygame.joystick.Joystick(0).get_name()  # Enregistrement du nom du joystick
+            self.joystick_name = self.selected_joystick.get_name()  # Enregistrement du nom du joystick
             self.record_joystick()
         
         self.save_button.config(state=tk.DISABLED)
@@ -166,7 +191,7 @@ class KeyloggerApp:
                 })
 
     def record_joystick(self):
-        if self.recording:
+        if self.recording and self.joystick_listener:
             joystick = self.joystick_listener
             while self.recording:
                 pygame.event.pump()
