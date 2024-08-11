@@ -27,7 +27,8 @@ class KeyloggerApp:
         # Interface graphique
         self.create_widgets()
         self.detect_devices()
-    
+        self.update_device_list()
+
     def create_widgets(self):
         self.start_button = ttk.Button(self.root, text="Start Recording", command=self.start_recording)
         self.start_button.pack(pady=10)
@@ -43,14 +44,29 @@ class KeyloggerApp:
 
     def detect_devices(self):
         # Détecter les périphériques disponibles
-        self.available_devices = {
+        new_devices = {
             "Keyboard": devices.keyboards,
             "Mouse": devices.mice,
             "Gamepad": devices.gamepads,
         }
         
-        # Mise à jour de l'interface utilisateur
-        for device_name, device_list in self.available_devices.items():
+        # Si la liste est déjà remplie, on vérifie les différences pour éviter une réinitialisation inutile
+        if self.device_vars:
+            for device_name, device_list in new_devices.items():
+                if (device_name not in self.device_vars or
+                        len(device_list) != len(self.device_vars.get(device_name, []))):
+                    self.reset_device_frame(new_devices)
+                    break
+        else:
+            self.reset_device_frame(new_devices)
+
+    def reset_device_frame(self, new_devices):
+        # Réinitialiser la liste des périphériques
+        for widget in self.device_frame.winfo_children():
+            widget.destroy()
+        self.device_vars.clear()
+        
+        for device_name, device_list in new_devices.items():
             if device_list:  # Vérifier si la liste de périphériques n'est pas vide
                 var = tk.BooleanVar(value=True)
                 checkbutton = ttk.Checkbutton(self.device_frame, text=device_name, variable=var)
@@ -93,7 +109,10 @@ class KeyloggerApp:
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.save_button.config(state=tk.NORMAL)
-    
+        
+        # Redémarrer l'actualisation de la liste des périphériques
+        self.update_device_list()
+
     def save_recording(self):
         if not self.log:
             messagebox.showwarning("Warning", "No data to save!")
@@ -175,7 +194,12 @@ class KeyloggerApp:
 
         # Continue polling for gamepad events
         self.root.after(10, self.poll_gamepad)
-            
+    
+    def update_device_list(self):
+        if not self.recording:
+            self.detect_devices()
+            self.root.after(1000, self.update_device_list)  # Re-check every second
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = KeyloggerApp(root)
