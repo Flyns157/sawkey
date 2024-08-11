@@ -28,7 +28,7 @@ class KeyloggerApp:
 
     def setup_ui(self):
         # Start/Stop button
-        self.toggle_button = tk.Button(self.root, text="Start Recording", command=self.toggle_recording, bg="lightgrey")
+        self.toggle_button = tk.Button(self.root, text="Start Recording", command=self.toggle_recording, bg="lightgreen")
         self.toggle_button.pack(pady=10)
 
         # Save file
@@ -101,7 +101,7 @@ class KeyloggerApp:
             self.selected_joystick = pygame.joystick.Joystick(selected_joystick_index[0])
 
         self.recording = True
-        self.toggle_button.config(text="Stop Recording", bg="lightgreen")
+        self.toggle_button.config(text="Stop Recording", bg="red")
         self.start_time = time.time()
         self.data = []
 
@@ -122,7 +122,7 @@ class KeyloggerApp:
         if self.mouse_listener: self.mouse_listener.stop()
         if self.keyboard_listener: self.keyboard_listener.stop()
 
-        self.toggle_button.config(text="Start Recording", bg="lightgrey")
+        self.toggle_button.config(text="Start Recording", bg="lightgreen")
         self.save_button.config(state=tk.NORMAL)
 
     def save_recording(self):
